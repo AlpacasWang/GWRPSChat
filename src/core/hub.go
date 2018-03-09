@@ -8,7 +8,8 @@ import(
 	"fmt"
 	"net/http"
 )
-
+var DefaultGroups = map[int]bool{0:true}
+const DefaultGroup = 0
 // hub maintains the set of active clients and broadcasts messages to the
 // clients.
 type Hub struct {
@@ -34,7 +35,7 @@ func NewHub() *Hub {
 	}
 }
 
-func (h *Hub) Run() {
+func (h *Hub) Run(redisChannel string) {
 	for {
 		select {
 		case client := <-h.register:
@@ -45,10 +46,24 @@ func (h *Hub) Run() {
 				close(client.Send)
 			}
 		case message := <-h.broadcast:
-			Publish("c1",message)
-			
+			Publish(redisChannel,message)
 		}
 	}
+}
+
+//broadcast
+func (hub *Hub)OnMessage(channel string, data []byte) error{
+	for client := range hub.Clients {
+		if(client.Groups[DefaultGroup]){
+			select {
+			case client.Send <- data:
+			default:
+				close(client.Send)
+				delete(hub.Clients, client)
+			}
+		}
+	}
+	return nil
 }
 
 
@@ -59,7 +74,8 @@ func (hub *Hub)ServeWs(w http.ResponseWriter, r *http.Request) {
 		fmt.Println(err)
 		return
 	}
-	client := &Client{hub: hub, conn: conn, Send: make(chan []byte, 256)}
+
+	client := &Client{hub: hub, Groups: DefaultGroups,conn: conn, Send: make(chan []byte, 256)}
 	client.hub.register <- client
 
 	// Allow collection of memory referenced by the caller by doing all work in
