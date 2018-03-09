@@ -1,15 +1,15 @@
 # GWRPSChat
 A ChatServer made by **G**o,**W**ebSocket,**R**edis **p**ub/**s**ub  
 
-##Structure
+## Structure
 
 ![Structure picture](structure.png)
 
-##Installation
+## Installation
 
 just Install Go and Redis  
 
-##Quick Start 
+## Quick Start 
 
 1.Setup redis server with 127.0.0.1:6379  
 2.go run main.go  
