@@ -1,5 +1,2 @@
-# WebSocket
+gom 'github.com/garyburd/redigo'
 gom 'github.com/gorilla/websocket'
-
-# Redis
-gom 'github.com/garyburd/redigo/redis'
