@@ -1,12 +1,18 @@
 # GWRPSChat
-A ChatServer made by Go,WebSocket,Redis pub/sub
+A ChatServer made by **G**o,**W**ebSocket,**R**edis **p**ub/**s**ub  
 
-起動手順   
+##Structure
 
-1.redisを127.0.0.1:6379で起動する   
+![Structure picture](structure.png)
 
-2.go run main.goでチャットサーバーを起動する     
+##Installation
 
-3.ブラウザーで http://localhost:8080 でチャットに入る      
+just Install Go and Redis  
+
+##Quick Start 
+
+1.Setup redis server with 127.0.0.1:6379  
+2.go run main.go  
+3.Begin chat by http://localhost:8080 with web browser  
 
 
