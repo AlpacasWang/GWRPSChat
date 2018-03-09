@@ -33,8 +33,8 @@ func Run() {
 	flag.Parse()
 	hub = core.NewHub()
 	core.InitConn(redisAddr);
-	core.Subscribe(defaultChannel,onMessage)
-	go hub.Run()
+	core.Subscribe(defaultChannel,hub.OnMessage)
+	go hub.Run(defaultChannel)
 	http.HandleFunc("/", serveHome)
 	http.HandleFunc("/ws", func(w http.ResponseWriter, r *http.Request) {
 		hub.ServeWs( w, r)
@@ -43,16 +43,4 @@ func Run() {
 	if err != nil {
 		log.Fatal("ListenAndServe: ", err)
 	}
-}
-
-func onMessage(channel string, data []byte) error{
-	for client := range hub.Clients {
-		select {
-		case client.Send <- data:
-		default:
-			close(client.Send)
-			delete(hub.Clients, client)
-		}
-	}
-	return nil
 }
