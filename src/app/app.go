@@ -11,8 +11,11 @@ import (
 	"core"
 )
 
-var addr = flag.String("addr", ":8080", "http service address")
+const addr = ":8080"
+const redisAddr = "127.0.0.1:6379"
+const defaultChannel = "c1"
 var hub *core.Hub
+
 func serveHome(w http.ResponseWriter, r *http.Request) {
 	log.Println(r.URL)
 	if r.URL.Path != "/" {
@@ -29,14 +32,14 @@ func serveHome(w http.ResponseWriter, r *http.Request) {
 func Run() {
 	flag.Parse()
 	hub = core.NewHub()
-	core.InitConn("127.0.0.1:6379");
-	core.Subscribe("c1",onMessage)
+	core.InitConn(redisAddr);
+	core.Subscribe(defaultChannel,onMessage)
 	go hub.Run()
 	http.HandleFunc("/", serveHome)
 	http.HandleFunc("/ws", func(w http.ResponseWriter, r *http.Request) {
 		hub.ServeWs( w, r)
 	})
-	err := http.ListenAndServe(*addr, nil)
+	err := http.ListenAndServe(addr, nil)
 	if err != nil {
 		log.Fatal("ListenAndServe: ", err)
 	}

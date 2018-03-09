@@ -8,6 +8,7 @@ import (
 
 var SubConn redis.PubSubConn
 var PubConn redis.Conn
+var done = make(chan error, 1)
 //死活監視間隔
 const HealthCheckPeriod = time.Minute
 
@@ -46,7 +47,7 @@ func Publish(channel string,message []byte) {
 // health checks.
 func Subscribe(channel string,onMessage func(channel string, data []byte) error) {
 
-	err := listenPubSubChannels(onMessage,"c1")
+	err := listenPubSubChannels(onMessage,channel)
 
 	if err != nil {
 		fmt.Println(err)
@@ -66,7 +67,6 @@ func listenPubSubChannels(
 		return err
 	}
     fmt.Println("Subscribe Success ")
-	done := make(chan error, 1)
 
 	// Start a goroutine to receive notifications from the server.
 	go func() {
@@ -88,24 +88,23 @@ func listenPubSubChannels(
 
 	//死活監視
 	go func() error{
-		var err error = nil
 		ticker := time.NewTicker(HealthCheckPeriod)
 		defer ticker.Stop()
-		for err == nil {
+		defer CloseConn()
+		for {
 			select {
 			case <-ticker.C:
 				// Send ping to test health of connection and server. If
 				// corresponding pong is not received, then receive on the
 				// connection will timeout and the receive goroutine will exit.
-				if err = SubConn.Ping(""); err != nil {
-					break 
+				if err := SubConn.Ping(""); err != nil {
+					return err 
 				}
 			case err := <-done:
 				// Return error from the receive goroutine.
 				return err
 			}
 		}
-		return err
 	}()
 
 	// Wait for goroutine to complete.
