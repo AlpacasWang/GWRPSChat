@@ -6,13 +6,18 @@ import (
 	"github.com/garyburd/redigo/redis"
 )
 
-var SubConn redis.PubSubConn
-var PubConn redis.Conn
-var done = make(chan error, 1)
 //死活監視間隔
 const HealthCheckPeriod = time.Minute
 
-func InitConn(address string) error{
+type RedisConnect struct {
+	SubConn *redis.PubSubConn
+	PubConn *redis.Conn
+	channel string
+	Done chan error
+	//var done = make(chan error, 1)
+}
+
+func (r *RedisConnect)InitConn(address string) error{
 	var err error
 	var tmpConn redis.Conn 
 	tmpConn, err = redis.Dial("tcp", address,
@@ -22,32 +27,32 @@ func InitConn(address string) error{
 	if err != nil {
 		return err
 	}
-	SubConn = redis.PubSubConn{Conn: tmpConn}
+	r.SubConn = &redis.PubSubConn{Conn: tmpConn}
 
-	PubConn, err = redis.Dial("tcp", address)
+	tmpConn, err = redis.Dial("tcp", address)
 	if err != nil {
 		fmt.Println(err)
 		return err
 	}
-
+	r.PubConn = &tmpConn
 	return nil
 }
 
-func CloseConn(){
-	SubConn.Unsubscribe()
-	SubConn.Close()
-	PubConn.Close()
+func (r *RedisConnect)CloseConn(){
+	r.SubConn.Unsubscribe()
+	r.SubConn.Close()
+	(*r.PubConn).Close()
 }
 
-func Publish(channel string,message []byte) {
-	PubConn.Do("PUBLISH", channel, message)
+func (r *RedisConnect)Publish(channel string,message []byte) {
+	(*r.PubConn).Do("PUBLISH", channel, message)
 }
 
 // This example shows how receive pubsub notifications with cancelation and
 // health checks.
-func Subscribe(channel string,onMessage func(channel string, data []byte) error) {
+func (r *RedisConnect)Subscribe(channel string,onMessage func(channel string, data []byte) error) {
 
-	err := listenPubSubChannels(onMessage,channel)
+	err := r.listenPubSubChannels(onMessage,channel)
 
 	if err != nil {
 		fmt.Println(err)
@@ -58,12 +63,12 @@ func Subscribe(channel string,onMessage func(channel string, data []byte) error)
 // L listens for messages on Redis pubsub channels. The
 // onStart function is called after the channels are subscribed. The onMessage
 // function is called for each message.
-func listenPubSubChannels(
+func (r *RedisConnect)listenPubSubChannels(
 	onMessage func(channel string, data []byte) error,
 	channels ...string) error {
 	// A ping is set to the server with this period to test for the health of
 	// the connection and server.
-	if err := SubConn.Subscribe(redis.Args{}.AddFlat(channels)...); err != nil {
+	if err := r.SubConn.Subscribe(redis.Args{}.AddFlat(channels)...); err != nil {
 		return err
 	}
     fmt.Println("Subscribe Success ")
@@ -71,13 +76,13 @@ func listenPubSubChannels(
 	// Start a goroutine to receive notifications from the server.
 	go func() {
 		for {
-			switch n := SubConn.Receive().(type) {
+			switch n := r.SubConn.Receive().(type) {
 			case error:
-				done <- n
+				r.Done <- n
 				return
 			case redis.Message:
 				if err := onMessage(n.Channel, n.Data); err != nil {
-					done <- err
+					r.Done <- err
 					return
 				}
 			case redis.Subscription:
@@ -90,17 +95,17 @@ func listenPubSubChannels(
 	go func() error{
 		ticker := time.NewTicker(HealthCheckPeriod)
 		defer ticker.Stop()
-		defer CloseConn()
+		defer r.CloseConn()
 		for {
 			select {
 			case <-ticker.C:
 				// Send ping to test health of connection and server. If
 				// corresponding pong is not received, then receive on the
 				// connection will timeout and the receive goroutine will exit.
-				if err := SubConn.Ping(""); err != nil {
+				if err := r.SubConn.Ping(""); err != nil {
 					return err 
 				}
-			case err := <-done:
+			case err := <-r.Done:
 				// Return error from the receive goroutine.
 				return err
 			}
