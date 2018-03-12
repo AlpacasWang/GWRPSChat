@@ -1,7 +1,8 @@
 # GWRPSChat
-A ChatServer made by **G**o,**W**ebSocket,**R**edis **p**ub/**s**ub  
+A ChatServer made by **G**o,**W**ebSocket,**R**edis **p**ub/**s**ub.   
 
 ## Structure
+Load Balancer is not included in this project,maybe you can use nginx or ELB(AWS).   
 
 ![Structure picture](structure.png)
 
